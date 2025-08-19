@@ -61,7 +61,7 @@ export default function App(){
         } />
         <Route path="/delete-account" element={
           <ProtectedRoute authed={!!user}>
-            <DeleteAccount />
+            <DeleteAccount setUser={setUser} />
           </ProtectedRoute>
         } />
       </Routes>

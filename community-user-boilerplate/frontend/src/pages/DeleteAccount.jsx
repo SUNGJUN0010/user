@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { deleteAccount } from '../api/auth'
+import { deleteAccount, clearAccessToken } from '../api/auth'
 import { useNavigate } from 'react-router-dom'
 
-export default function DeleteAccount(){
+export default function DeleteAccount({ setUser }){
   const [msg, setMsg] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
@@ -18,6 +18,15 @@ export default function DeleteAccount(){
     try {
       await deleteAccount()
       setMsg('회원탈퇴가 완료되었습니다.')
+      
+      // 사용자 상태와 토큰 정리
+      setUser(null)
+      clearAccessToken()
+      
+      // 브라우저 로컬 스토리지 정리
+      localStorage.clear()
+      sessionStorage.clear()
+      
       setTimeout(() => {
         navigate('/')
       }, 2000)

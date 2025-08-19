@@ -16,4 +16,5 @@ export const changePassword = async (payload) => (await api.put('/api/users/me/p
 export const forgotPassword = async (email) => (await api.post('/api/auth/forgot-password', { email })).data
 export const forgotUsername = async (email) => (await api.post('/api/auth/forgot-username', { email })).data
 export const deleteAccount = async () => (await api.delete('/api/auth/delete-account')).data
+export const clearAccessToken = () => { setAccessToken(null) }
 export const resetPassword = async (payload) => (await api.post('/api/auth/reset-password', payload)).data

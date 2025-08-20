@@ -13,6 +13,15 @@ export const logout = async () => {
 export const me = async () => (await api.get('/api/auth/me')).data
 export const updateMe = async (payload) => (await api.put('/api/users/me', payload)).data
 export const changePassword = async (payload) => (await api.put('/api/users/me/password', payload)).data
+export const uploadAvatar = async (file) => {
+  const formData = new FormData()
+  formData.append('avatar', file)
+  return (await api.post('/api/users/me/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })).data
+}
 export const forgotPassword = async (email) => (await api.post('/api/auth/forgot-password', { email })).data
 export const forgotUsername = async (email) => (await api.post('/api/auth/forgot-username', { email })).data
 export const deleteAccount = async () => (await api.delete('/api/auth/delete-account')).data

@@ -1,9 +1,12 @@
-import { useState } from 'react'
-import { updateMe, changePassword, deleteAccount } from '../api/auth'
+import { useState, useRef } from 'react'
+import { updateMe, changePassword, deleteAccount, uploadAvatar } from '../api/auth'
 import { useNavigate } from 'react-router-dom'
+import { getAvatarStyle } from '../utils/avatar'
 
 export default function Profile({ user, setUser }){
   const [msg, setMsg] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const navigate = useNavigate()
 
   const onDeleteAccount = async () => {
@@ -34,54 +37,50 @@ export default function Profile({ user, setUser }){
     navigate('/delete-account')
   }
 
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    // 파일 크기 검사 (5MB 제한)
+    if (file.size > 5 * 1024 * 1024) {
+      setMsg('파일 크기는 5MB 이하여야 합니다.')
+      return
+    }
+
+    // 파일 형식 검사
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setMsg('지원하는 파일 형식: JPG, PNG, GIF')
+      return
+    }
+
+    setIsUploading(true)
+    setMsg('')
+
+    try {
+      const result = await uploadAvatar(file)
+      setUser({ ...user, avatar_url: result.avatar_url })
+      setMsg(result.message)
+    } catch (error) {
+      setMsg(error.response?.data?.message || '업로드 중 오류가 발생했습니다.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#f5f5f5',
       display: 'flex',
-      flexDirection: 'column'
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px'
     }}>
-      {/* 상단 헤더 */}
-      <header style={{
-        backgroundColor: 'white',
-        padding: '16px 24px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
-          Community
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            backgroundColor: '#1e3a8a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}>
-            {user?.username?.charAt(0).toUpperCase()}
-          </div>
-          <span style={{ fontWeight: '500', color: '#333' }}>
-            {user?.username}
-          </span>
-        </div>
-      </header>
-
-      {/* 메인 콘텐츠 */}
-      <main style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px'
-      }}>
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
@@ -93,20 +92,54 @@ export default function Profile({ user, setUser }){
         }}>
           {/* 사용자 아이콘 */}
           <div style={{
-            width: '80px',
-            height: '80px',
-            borderRadius: '50%',
-            backgroundColor: '#1e3a8a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '32px',
-            fontWeight: 'bold',
-            margin: '0 auto 24px auto'
+            position: 'relative',
+            margin: '0 auto 24px auto',
+            display: 'inline-block'
           }}>
-            {user?.username?.charAt(0).toUpperCase()}
+            <div style={{
+              ...getAvatarStyle(user?.avatar_url, 80, '32px'),
+              cursor: 'pointer',
+              transition: 'opacity 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.opacity = '0.8'}
+            onMouseOut={(e) => e.target.style.opacity = '1'}
+            onClick={triggerFileInput}
+            >
+              {!user?.avatar_url && user?.username?.charAt(0).toUpperCase()}
+            </div>
+            
+            {/* 편집 아이콘 */}
+            <div style={{
+              position: 'absolute',
+              bottom: '0',
+              right: '0',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: '#1e3a8a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              border: '2px solid white',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+            onClick={triggerFileInput}
+            >
+              <span style={{ fontSize: '12px', color: 'white' }}>
+                {isUploading ? '⏳' : '✏️'}
+              </span>
+            </div>
           </div>
+
+          {/* 숨겨진 파일 입력 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarUpload}
+            style={{ display: 'none' }}
+          />
 
           {/* 환영 메시지 */}
           <h1 style={{
@@ -201,7 +234,6 @@ export default function Profile({ user, setUser }){
             </div>
           )}
         </div>
-      </main>
     </div>
   )
 }

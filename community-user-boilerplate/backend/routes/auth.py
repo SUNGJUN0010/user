@@ -9,6 +9,7 @@ from ..extensions import db
 from ..models import User
 from ..utils.tokens import generate_reset_token, verify_reset_token
 from ..utils.email import send_password_reset_email
+from ..utils.file_utils import delete_avatar_file
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -44,12 +45,9 @@ def register():
 @bp.post("/login")
 def login():
     data = request.get_json() or {}
-    print(f"DEBUG: Received login data: {data}")
     
     email_or_username = (data.get("email_or_username") or "").strip()
     password = data.get("password") or ""
-    
-    print(f"DEBUG: email_or_username: '{email_or_username}', password length: {len(password)}")
 
     if not email_or_username:
         return jsonify({"message": "이메일/사용자명이 필요합니다"}), 422
@@ -59,57 +57,47 @@ def login():
 
     user = User.query.filter((User.email == email_or_username.lower()) | (User.username == email_or_username)).first()
     
-    print(f"DEBUG: Found user: {user.username if user else 'None'}")
-    
     if not user:
+        print(f"LOGIN_FAILED: User not found - {email_or_username}")
         return jsonify({"message": "존재하지 않는 사용자입니다"}), 401
     
-    print(f"DEBUG: Checking password for user: {user.username}")
-    print(f"DEBUG: Stored password hash: {user.password_hash[:20]}...")
-    
     if not user.check_password(password):
-        print(f"DEBUG: Password check failed")
+        print(f"LOGIN_FAILED: Invalid password for user - {user.username}")
         return jsonify({"message": "비밀번호가 일치하지 않습니다"}), 401
     
-    print(f"DEBUG: Password check successful")
-    
     if not user.is_active:
+        print(f"LOGIN_FAILED: Inactive account - {user.username}")
         return jsonify({"message": "비활성화된 계정입니다"}), 401
 
-    print(f"DEBUG: Updating last_login_at")
+    # 로그인 성공 시 업데이트
     user.last_login_at = datetime.utcnow()
     db.session.commit()
-    print(f"DEBUG: Database updated successfully")
-
-    print(f"DEBUG: Creating JWT tokens")
+    
     identity = str(user.id)
-    print(f"DEBUG: Identity: {identity}")
     
     try:
         access_token = create_access_token(identity=identity)
-        print(f"DEBUG: Access token created: {access_token[:20]}...")
         refresh_token = create_refresh_token(identity=identity)
-        print(f"DEBUG: Refresh token created: {refresh_token[:20]}...")
     except Exception as e:
-        print(f"DEBUG: JWT token creation error: {e}")
+        print(f"ERROR: JWT token creation failed - {e}")
         return jsonify({"message": "토큰 생성 중 오류가 발생했습니다"}), 500
 
-    print(f"DEBUG: Creating response")
     try:
         resp = make_response(jsonify({
             "access_token": access_token,
             "user": user.to_dict(),
         }))
-        print(f"DEBUG: Response created successfully")
-        
+
+
+
+
         # httpOnly 쿠키에 refresh 토큰 저장
         set_refresh_cookies(resp, refresh_token)
-        print(f"DEBUG: Refresh cookies set successfully")
         
-        print(f"DEBUG: Login successful for user: {user.username}")
+        print(f"LOGIN_SUCCESS: User logged in - {user.username} (ID: {user.id})")
         return resp, 200
     except Exception as e:
-        print(f"DEBUG: Response creation error: {e}")
+        print(f"ERROR: Response creation failed - {e}")
         return jsonify({"message": "응답 생성 중 오류가 발생했습니다"}), 500
 
 
@@ -176,6 +164,9 @@ def delete_account():
         return jsonify({"message": "사용자를 찾을 수 없습니다"}), 404
     
     try:
+        # 아바타 파일 삭제 (있는 경우)
+        delete_avatar_file(user.avatar_url)
+        
         # 사용자 삭제
         db.session.delete(user)
         db.session.commit()

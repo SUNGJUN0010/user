@@ -6,6 +6,7 @@ from PIL import Image
 import uuid
 from ..extensions import db
 from ..models import User
+from ..utils.file_utils import delete_avatar_file
 
 bp = Blueprint("users", __name__, url_prefix="/api/users")
 
@@ -55,6 +56,9 @@ def delete_me():
     if not user:
         return jsonify({"message": "인증 오류"}), 401
 
+    # 아바타 파일 삭제 (있는 경우)
+    delete_avatar_file(user.avatar_url)
+
     user.is_active = False
     db.session.commit()
     return jsonify({"message": "회원탈퇴 처리(비활성화)"}), 200
@@ -100,11 +104,7 @@ def upload_avatar():
         image.save(filepath, quality=85, optimize=True)
         
         # 기존 아바타 파일 삭제 (있는 경우)
-        if user.avatar_url and os.path.exists(user.avatar_url):
-            try:
-                os.remove(user.avatar_url)
-            except:
-                pass
+        delete_avatar_file(user.avatar_url)
         
         # 데이터베이스에 아바타 URL 저장
         avatar_url = f"/static/avatars/{filename}"

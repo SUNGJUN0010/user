@@ -3,6 +3,7 @@ import { Routes, Route, Link, useNavigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
 import { me, logout } from './api/auth'
+import { setAccessToken } from './api/client'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -21,10 +22,28 @@ export default function App(){
   useEffect(() => {
     (async () => {
       try {
-        const data = await me()
-        setUser(data.user)
-      } catch (_) {}
-      setLoading(false)
+        // localStorage에서 토큰 복원
+        const savedToken = localStorage.getItem('accessToken')
+        if (savedToken) {
+          setAccessToken(savedToken)
+          // 토큰이 있으면 사용자 정보 가져오기 시도
+          try {
+            const data = await me()
+            setUser(data.user)
+          } catch (meError) {
+            console.error('사용자 정보 로드 실패:', meError)
+            // 401 에러가 아닌 경우에만 토큰 제거 (네트워크 오류 등은 토큰 유지)
+            if (meError.response?.status === 401) {
+              localStorage.removeItem('accessToken')
+              setAccessToken(null)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('초기화 오류:', error)
+      } finally {
+        setLoading(false)
+      }
     })()
   }, [])
 
@@ -32,11 +51,13 @@ export default function App(){
     try {
       await logout()
       setUser(null)
+      setAccessToken(null) // 토큰 제거
       navigate('/login')
     } catch (error) {
       console.error('로그아웃 오류:', error)
       // 오류가 발생해도 사용자 상태를 초기화하고 로그인 페이지로 이동
       setUser(null)
+      setAccessToken(null) // 토큰 제거
       navigate('/login')
     }
   }

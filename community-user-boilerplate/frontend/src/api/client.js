@@ -6,8 +6,15 @@ const api = axios.create({
 })
 
 // Access Token 자동 첨부 인터셉터(옵션)
-let accessToken = null
-export const setAccessToken = (token) => { accessToken = token }
+let accessToken = localStorage.getItem('accessToken')
+export const setAccessToken = (token) => { 
+  accessToken = token
+  if (token) {
+    localStorage.setItem('accessToken', token)
+  } else {
+    localStorage.removeItem('accessToken')
+  }
+}
 
 api.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
@@ -28,7 +35,13 @@ api.interceptors.response.use(
           original.headers.Authorization = `Bearer ${data.access_token}`
           return api(original)
         }
-      } catch (_) {}
+      } catch (refreshError) {
+        console.error('토큰 갱신 실패:', refreshError)
+        // refresh 실패 시 토큰 제거
+        setAccessToken(null)
+        // 로그인 페이지로 리다이렉트
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

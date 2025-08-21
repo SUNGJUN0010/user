@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\피터팬\Downloads\community-user-boilerplate\backend\.venv"
+VIRTUAL_ENV="C:\Users\피터팬\Downloads\community-user-boilerplate (3)\community-user-boilerplate\backend\.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
